@@ -4,10 +4,12 @@ window.addEventListener("load", () => {
   const scroller = document.getElementById("scroll-box");
   const cards = document.querySelectorAll(".card");
   const progressBar = document.getElementById("progress-overlay");
+  const prevBtn = document.getElementById("prev");
+  const nextBtn = document.getElementById("next");
 
   let currentProgress = 1;
 
-  // Function to update progress bar based on scroll position
+  // Update progress bar based on scroll
   function updateProgress() {
     const maxScroll = scroller.scrollWidth - scroller.clientWidth;
     const scrollFraction = scroller.scrollLeft / maxScroll;
@@ -56,9 +58,9 @@ window.addEventListener("load", () => {
     autoSlide = setInterval(nextSlide, 2777);
   }
 
-  // Expose functions to global scope for onclick buttons
-  window.prevSlide = prevSlide;
-  window.nextSlide = nextSlide;
+  // Attach button event listeners
+  prevBtn.addEventListener("click", prevSlide);
+  nextBtn.addEventListener("click", nextSlide);
 
   // Update progress on manual scroll
   scroller.addEventListener("scroll", updateProgress);
