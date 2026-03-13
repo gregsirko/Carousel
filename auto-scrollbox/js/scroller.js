@@ -9,95 +9,121 @@ window.addEventListener("load", () => {
 
   const totalCards = cards.length;
   let currentIndex = 0;
-  let autoSlideInterval;
+  let autoSlideTimeout;
   const autoSlideDelay = 2777;
+  let userInteracting = false;
+  let animationFrame = null;
 
   function getCardWidth() {
     return cards[0].offsetWidth;
   }
 
-  // --- Update progress bar ---
-  function updateProgressBar() {
+  // --- Smooth scroll to target index ---
+  function smoothScrollTo(targetIndex, duration = 400) {
+    cancelAnimationFrame(animationFrame);
     const cardWidth = getCardWidth();
+    const start = scroller.scrollLeft;
+    const end = cardWidth * targetIndex;
+    const distance = end - start;
+    const startTime = performance.now();
+
+    function step(time) {
+      const elapsed = time - startTime;
+      const t = Math.min(elapsed / duration, 1);
+      scroller.scrollLeft = start + distance * easeInOutQuad(t);
+      updateProgressBar();
+      if (t < 1) {
+        animationFrame = requestAnimationFrame(step);
+      } else {
+        currentIndex = targetIndex;
+      }
+    }
+    animationFrame = requestAnimationFrame(step);
+  }
+
+  function easeInOutQuad(t) {
+    return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+  }
+
+  // --- Progress bar ---
+  function updateProgressBar() {
     const scroll = scroller.scrollLeft;
-    const rawProgress = scroll / (cardWidth * (totalCards - 1));
-    let progress = Math.min(Math.max(rawProgress * 100, 0), 100);
-    if (currentIndex === totalCards - 1) progress = 100; // final slide full
+    const maxScroll = getCardWidth() * (totalCards - 1);
+    let progress = Math.min(Math.max((scroll / maxScroll) * 100, 0), 100);
+    if (currentIndex >= totalCards - 1) progress = 100;
     progressBar.style.width = progress + "%";
   }
 
-  // --- Scroll to slide ---
-  function scrollToIndex(index, smooth = true) {
-    const cardWidth = getCardWidth();
-    scroller.scrollTo({
-      left: cardWidth * index,
-      behavior: smooth ? "smooth" : "auto",
-    });
-    currentIndex = index;
-    updateProgressBar();
+  // --- Slide navigation ---
+  function goToSlide(index) {
+    smoothScrollTo(index);
+    pauseAndResetAutoSlide();
   }
 
-  // --- Next / Prev slides ---
   function nextSlide() {
-    currentIndex = (currentIndex + 1) % totalCards;
-    scrollToIndex(currentIndex);
-    resetAutoSlide();
+    let newIndex = (currentIndex + 1) % totalCards;
+    goToSlide(newIndex);
   }
 
   function prevSlide() {
-    currentIndex = (currentIndex - 1 + totalCards) % totalCards;
-    scrollToIndex(currentIndex);
-    resetAutoSlide();
+    let newIndex = (currentIndex - 1 + totalCards) % totalCards;
+    goToSlide(newIndex);
   }
 
   prevBtn.addEventListener("click", prevSlide);
   nextBtn.addEventListener("click", nextSlide);
 
-  // --- Auto-slide ---
+  // --- Auto-slide control ---
   function startAutoSlide() {
-    clearInterval(autoSlideInterval);
-    autoSlideInterval = setInterval(nextSlide, autoSlideDelay);
+    clearTimeout(autoSlideTimeout);
+    if (!userInteracting) {
+      autoSlideTimeout = setTimeout(nextSlide, autoSlideDelay);
+    }
   }
 
-  function resetAutoSlide() {
-    clearInterval(autoSlideInterval);
-    startAutoSlide();
+  function pauseAndResetAutoSlide() {
+    userInteracting = true;
+    clearTimeout(autoSlideTimeout);
+    setTimeout(() => {
+      userInteracting = false;
+      startAutoSlide();
+    }, 1000); // restart after 1s of inactivity
   }
 
-  // --- Handle manual scroll / swipe ---
+  // --- Manual scroll / swipe ---
   let isDragging = false;
-
   scroller.addEventListener("mousedown", () => {
     isDragging = true;
-    resetAutoSlide();
+    pauseAndResetAutoSlide();
   });
   scroller.addEventListener("touchstart", () => {
     isDragging = true;
-    resetAutoSlide();
+    pauseAndResetAutoSlide();
   });
   scroller.addEventListener("mouseup", () => {
     if (isDragging) {
       isDragging = false;
-      resetAutoSlide();
+      pauseAndResetAutoSlide();
     }
   });
   scroller.addEventListener("touchend", () => {
     if (isDragging) {
       isDragging = false;
-      resetAutoSlide();
+      pauseAndResetAutoSlide();
     }
   });
+
   scroller.addEventListener("scroll", () => {
     const cardWidth = getCardWidth();
     currentIndex = Math.round(scroller.scrollLeft / cardWidth);
     updateProgressBar();
-    resetAutoSlide();
+    pauseAndResetAutoSlide();
   });
 
   // --- Window resize ---
-  window.addEventListener("resize", () => scrollToIndex(currentIndex, false));
+  window.addEventListener("resize", () => smoothScrollTo(currentIndex, 0));
 
   // --- Initialize ---
-  scrollToIndex(0, false);
+  smoothScrollTo(0, 0);
   startAutoSlide();
 });
