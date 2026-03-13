@@ -35,7 +35,6 @@ function initCarousel() {
   // --- Clone first and last cards for seamless infinite loop ---
   const firstClone = cards[0].cloneNode(true);
   const lastClone = cards[totalCards - 1].cloneNode(true);
-
   scroller.appendChild(firstClone);
   scroller.insertBefore(lastClone, scroller.firstChild);
 
@@ -152,9 +151,33 @@ function initCarousel() {
       ticking = true;
     }
 
-    // Pause auto-slide while user interacts
+    // Pause and reset auto-slide during any scroll
     clearTimeout(autoSlideInterval);
     setTimeout(() => resetAutoSlide(), 200);
+  });
+
+  // --- Reset auto-slide on drag / swipe ---
+  let isDragging = false;
+
+  scroller.addEventListener("mousedown", () => {
+    isDragging = true;
+    clearInterval(autoSlideInterval);
+  });
+  scroller.addEventListener("touchstart", () => {
+    isDragging = true;
+    clearInterval(autoSlideInterval);
+  });
+  scroller.addEventListener("mouseup", () => {
+    if (isDragging) {
+      isDragging = false;
+      resetAutoSlide();
+    }
+  });
+  scroller.addEventListener("touchend", () => {
+    if (isDragging) {
+      isDragging = false;
+      resetAutoSlide();
+    }
   });
 
   // --- Handle window resize ---
