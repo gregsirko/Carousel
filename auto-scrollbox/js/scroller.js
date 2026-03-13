@@ -1,6 +1,28 @@
 // scroller.js
 
+// Wait for window + all images to load
 window.addEventListener("load", () => {
+  const images = document.querySelectorAll(".card img");
+  let loadedCount = 0;
+
+  if (images.length === 0) {
+    initCarousel(); // no images, just init
+  } else {
+    images.forEach((img) => {
+      if (img.complete) {
+        loadedCount++;
+      } else {
+        img.addEventListener("load", () => {
+          loadedCount++;
+          if (loadedCount === images.length) initCarousel();
+        });
+      }
+    });
+    if (loadedCount === images.length) initCarousel();
+  }
+});
+
+function initCarousel() {
   const scroller = document.getElementById("scroll-box");
   const cards = Array.from(document.querySelectorAll(".card"));
   const progressBar = document.getElementById("progress-overlay");
@@ -10,7 +32,7 @@ window.addEventListener("load", () => {
   const totalCards = cards.length;
   let currentIndex = 0;
 
-  // --- Clone first and last cards for seamless looping ---
+  // --- Clone first and last cards for seamless infinite loop ---
   const firstClone = cards[0].cloneNode(true);
   const lastClone = cards[totalCards - 1].cloneNode(true);
 
@@ -21,21 +43,30 @@ window.addEventListener("load", () => {
     return cards[0].offsetWidth;
   }
 
-  // Throttle progress bar
-  let lastProgress = -1;
-  function updateProgress() {
-    const progress = ((currentIndex + 1) / totalCards) * 100;
-    if (Math.abs(progress - lastProgress) >= 0.5) {
-      progressBar.style.width = progress + "%";
-      lastProgress = progress;
-    }
+  // --- Smooth progress bar ---
+  let targetProgress = 0;
+  let currentProgress = 0;
+  const progressSpeed = 0.15;
+
+  function updateTargetProgress() {
+    const cardWidth = getCardWidth();
+    const scroll = scroller.scrollLeft - cardWidth;
+    targetProgress = (scroll / (cardWidth * totalCards)) * 100;
+    targetProgress = Math.max(0, Math.min(targetProgress, 100));
   }
 
-  // Scroll to a card using manual animation
+  function animateProgressBar() {
+    currentProgress += (targetProgress - currentProgress) * progressSpeed;
+    progressBar.style.width = currentProgress + "%";
+    requestAnimationFrame(animateProgressBar);
+  }
+  animateProgressBar();
+
+  // --- Scroll to card with animation ---
   function animateScroll(targetIndex, duration = 500) {
     const cardWidth = getCardWidth();
     const start = scroller.scrollLeft;
-    const end = cardWidth * (targetIndex + 1); // +1 because of clone
+    const end = cardWidth * (targetIndex + 1);
     const distance = end - start;
     const startTime = performance.now();
 
@@ -43,11 +74,10 @@ window.addEventListener("load", () => {
       const elapsed = time - startTime;
       const t = Math.min(elapsed / duration, 1);
       scroller.scrollLeft = start + distance * easeInOutQuad(t);
-      if (t < 1) {
-        requestAnimationFrame(step);
-      } else {
+      updateTargetProgress();
+      if (t < 1) requestAnimationFrame(step);
+      else {
         currentIndex = targetIndex;
-        updateProgress();
         checkInfiniteLoop();
       }
     }
@@ -64,10 +94,11 @@ window.addEventListener("load", () => {
       const cardWidth = getCardWidth();
       scroller.scrollLeft = cardWidth * (index + 1);
       currentIndex = index;
-      updateProgress();
+      updateTargetProgress();
     }
   }
 
+  // --- Arrow navigation ---
   function prevSlide() {
     let newIndex = currentIndex - 1;
     if (newIndex < 0) newIndex = totalCards - 1;
@@ -85,6 +116,7 @@ window.addEventListener("load", () => {
   prevBtn.addEventListener("click", prevSlide);
   nextBtn.addEventListener("click", nextSlide);
 
+  // --- Auto-slide ---
   let autoSlideInterval;
   function startAutoSlide() {
     autoSlideInterval = setInterval(nextSlide, 2777);
@@ -94,7 +126,7 @@ window.addEventListener("load", () => {
     startAutoSlide();
   }
 
-  // Handle infinite loop
+  // --- Infinite loop handling ---
   function checkInfiniteLoop() {
     const cardWidth = getCardWidth();
     if (scroller.scrollLeft >= cardWidth * (totalCards + 1)) {
@@ -102,9 +134,10 @@ window.addEventListener("load", () => {
     } else if (scroller.scrollLeft <= 0) {
       scroller.scrollLeft = cardWidth * totalCards;
     }
+    updateTargetProgress();
   }
 
-  // Manual scroll handling
+  // --- Manual scroll handling ---
   let ticking = false;
   scroller.addEventListener("scroll", () => {
     if (!ticking) {
@@ -113,18 +146,23 @@ window.addEventListener("load", () => {
         currentIndex = Math.round(scroller.scrollLeft / cardWidth - 1);
         if (currentIndex < 0) currentIndex = totalCards - 1;
         if (currentIndex >= totalCards) currentIndex = 0;
-        updateProgress();
+        updateTargetProgress();
         ticking = false;
       });
       ticking = true;
     }
+
+    // Pause auto-slide while user interacts
+    clearTimeout(autoSlideInterval);
+    setTimeout(() => resetAutoSlide(), 200);
   });
 
+  // --- Handle window resize ---
   window.addEventListener("resize", () => {
     scrollToCard(currentIndex, false);
   });
 
-  // Initialize
+  // --- Initialize carousel ---
   scrollToCard(0, false);
   startAutoSlide();
-});
+}
