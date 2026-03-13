@@ -1,34 +1,47 @@
+// scroller.js
+
 window.addEventListener("load", () => {
   const scroller = document.getElementById("scroll-box");
-  const cardWidth = document.querySelector(".card").offsetWidth;
-  const maxScroll = scroller.scrollWidth - scroller.clientWidth;
-
-  const progressBar = document.getElementById("progress-overlay");
   const cards = document.querySelectorAll(".card");
+  const progressBar = document.getElementById("progress-overlay");
+
   let currentProgress = 1;
-  const progressFrac = 100 / cards.length;
 
-  const totalSlides = maxScroll / cardWidth + 1;
+  // Function to update progress bar based on scroll position
+  function updateProgress() {
+    const maxScroll = scroller.scrollWidth - scroller.clientWidth;
+    const scrollFraction = scroller.scrollLeft / maxScroll;
+    progressBar.style.width = scrollFraction * 100 + "%";
+  }
 
-  progressBar.style.width = progressFrac + "%";
+  // Initial progress
+  updateProgress();
 
+  // Auto-slide interval
   let autoSlide = setInterval(nextSlide, 2777);
 
   function prevSlide() {
+    const cardWidth = cards[0].offsetWidth;
+    const maxScroll = scroller.scrollWidth - scroller.clientWidth;
+
     if (scroller.scrollLeft <= 0) {
       scroller.scrollLeft = maxScroll;
-      currentProgress = totalSlides;
+      currentProgress = cards.length;
     } else {
       scroller.scrollBy(-cardWidth, 0);
       currentProgress--;
     }
-    progressBar.style.width = (currentProgress / cards.length) * 100 + "%";
+
+    updateProgress();
 
     clearInterval(autoSlide);
     autoSlide = setInterval(nextSlide, 2777);
   }
 
   function nextSlide() {
+    const cardWidth = cards[0].offsetWidth;
+    const maxScroll = scroller.scrollWidth - scroller.clientWidth;
+
     if (scroller.scrollLeft + cardWidth > maxScroll) {
       scroller.scrollLeft = 0;
       currentProgress = 1;
@@ -36,9 +49,20 @@ window.addEventListener("load", () => {
       scroller.scrollBy(cardWidth, 0);
       currentProgress++;
     }
-    progressBar.style.width = (currentProgress / cards.length) * 100 + "%";
+
+    updateProgress();
 
     clearInterval(autoSlide);
     autoSlide = setInterval(nextSlide, 2777);
   }
+
+  // Expose functions to global scope for onclick buttons
+  window.prevSlide = prevSlide;
+  window.nextSlide = nextSlide;
+
+  // Update progress on manual scroll
+  scroller.addEventListener("scroll", updateProgress);
+
+  // Keep progress correct on window resize
+  window.addEventListener("resize", updateProgress);
 });
