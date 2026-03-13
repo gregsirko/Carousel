@@ -1,12 +1,11 @@
 // scroller.js
 
-// Wait for window + all images to load
 window.addEventListener("load", () => {
   const images = document.querySelectorAll(".card img");
   let loadedCount = 0;
 
   if (images.length === 0) {
-    initCarousel(); // no images, just init
+    initCarousel();
   } else {
     images.forEach((img) => {
       if (img.complete) {
@@ -61,7 +60,7 @@ function initCarousel() {
   }
   animateProgressBar();
 
-  // --- Scroll to card with animation ---
+  // --- Scroll to card with smooth animation ---
   function animateScroll(targetIndex, duration = 500) {
     const cardWidth = getCardWidth();
     const start = scroller.scrollLeft;
@@ -97,34 +96,6 @@ function initCarousel() {
     }
   }
 
-  // --- Arrow navigation ---
-  function prevSlide() {
-    let newIndex = currentIndex - 1;
-    if (newIndex < 0) newIndex = totalCards - 1;
-    scrollToCard(newIndex);
-    resetAutoSlide();
-  }
-
-  function nextSlide() {
-    let newIndex = currentIndex + 1;
-    if (newIndex >= totalCards) newIndex = 0;
-    scrollToCard(newIndex);
-    resetAutoSlide();
-  }
-
-  prevBtn.addEventListener("click", prevSlide);
-  nextBtn.addEventListener("click", nextSlide);
-
-  // --- Auto-slide ---
-  let autoSlideInterval;
-  function startAutoSlide() {
-    autoSlideInterval = setInterval(nextSlide, 2777);
-  }
-  function resetAutoSlide() {
-    clearInterval(autoSlideInterval);
-    startAutoSlide();
-  }
-
   // --- Infinite loop handling ---
   function checkInfiniteLoop() {
     const cardWidth = getCardWidth();
@@ -134,6 +105,43 @@ function initCarousel() {
       scroller.scrollLeft = cardWidth * totalCards;
     }
     updateTargetProgress();
+  }
+
+  // --- Slide navigation ---
+  function prevSlide() {
+    let newIndex = currentIndex - 1;
+    if (newIndex < 0) newIndex = totalCards - 1;
+    scrollToCard(newIndex);
+    pauseAndResetAutoSlide();
+  }
+
+  function nextSlide() {
+    let newIndex = currentIndex + 1;
+    if (newIndex >= totalCards) newIndex = 0;
+    scrollToCard(newIndex);
+    pauseAndResetAutoSlide();
+  }
+
+  prevBtn.addEventListener("click", prevSlide);
+  nextBtn.addEventListener("click", nextSlide);
+
+  // --- Auto-slide ---
+  let autoSlideInterval;
+  const autoSlideDelay = 2777;
+  let autoSlideTimeout;
+
+  function startAutoSlide() {
+    clearInterval(autoSlideInterval);
+    autoSlideInterval = setInterval(nextSlide, autoSlideDelay);
+  }
+
+  function pauseAndResetAutoSlide() {
+    clearInterval(autoSlideInterval);
+    clearTimeout(autoSlideTimeout);
+
+    autoSlideTimeout = setTimeout(() => {
+      startAutoSlide();
+    }, 1000);
   }
 
   // --- Manual scroll handling ---
@@ -150,42 +158,37 @@ function initCarousel() {
       });
       ticking = true;
     }
-
-    // Pause and reset auto-slide during any scroll
-    clearTimeout(autoSlideInterval);
-    setTimeout(() => resetAutoSlide(), 200);
   });
 
-  // --- Reset auto-slide on drag / swipe ---
+  // --- Reset auto-slide on drag/swipe ---
   let isDragging = false;
-
   scroller.addEventListener("mousedown", () => {
     isDragging = true;
-    clearInterval(autoSlideInterval);
+    pauseAndResetAutoSlide();
   });
   scroller.addEventListener("touchstart", () => {
     isDragging = true;
-    clearInterval(autoSlideInterval);
+    pauseAndResetAutoSlide();
   });
   scroller.addEventListener("mouseup", () => {
     if (isDragging) {
       isDragging = false;
-      resetAutoSlide();
+      pauseAndResetAutoSlide();
     }
   });
   scroller.addEventListener("touchend", () => {
     if (isDragging) {
       isDragging = false;
-      resetAutoSlide();
+      pauseAndResetAutoSlide();
     }
   });
 
-  // --- Handle window resize ---
+  // --- Window resize ---
   window.addEventListener("resize", () => {
     scrollToCard(currentIndex, false);
   });
 
-  // --- Initialize carousel ---
+  // --- Initialize ---
   scrollToCard(0, false);
   startAutoSlide();
 }
