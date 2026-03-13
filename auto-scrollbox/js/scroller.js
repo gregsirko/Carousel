@@ -1,27 +1,6 @@
 // scroller.js
 
 window.addEventListener("load", () => {
-  const images = document.querySelectorAll(".card img");
-  let loadedCount = 0;
-
-  if (images.length === 0) {
-    initCarousel();
-  } else {
-    images.forEach((img) => {
-      if (img.complete) {
-        loadedCount++;
-      } else {
-        img.addEventListener("load", () => {
-          loadedCount++;
-          if (loadedCount === images.length) initCarousel();
-        });
-      }
-    });
-    if (loadedCount === images.length) initCarousel();
-  }
-});
-
-function initCarousel() {
   const scroller = document.getElementById("scroll-box");
   const cards = Array.from(document.querySelectorAll(".card"));
   const progressBar = document.getElementById("progress-overlay");
@@ -31,7 +10,7 @@ function initCarousel() {
   const totalCards = cards.length;
   let currentIndex = 0;
 
-  // --- Clone first and last cards for seamless infinite loop ---
+  // --- Clone first and last cards for infinite seamless loop ---
   const firstClone = cards[0].cloneNode(true);
   const lastClone = cards[totalCards - 1].cloneNode(true);
   scroller.appendChild(firstClone);
@@ -44,13 +23,15 @@ function initCarousel() {
   // --- Smooth progress bar ---
   let targetProgress = 0;
   let currentProgress = 0;
-  const progressSpeed = 0.15;
+  const progressSpeed = 0.2; // faster animation
 
   function updateTargetProgress() {
     const cardWidth = getCardWidth();
     const scroll = scroller.scrollLeft - cardWidth;
-    targetProgress = (scroll / (cardWidth * totalCards)) * 100;
-    targetProgress = Math.max(0, Math.min(targetProgress, 100));
+    const rawProgress = scroll / (cardWidth * (totalCards - 1));
+    targetProgress = Math.min(Math.max(rawProgress * 100, 0), 100);
+    // Ensure final slide shows 100%
+    if (currentIndex === totalCards - 1) targetProgress = 100;
   }
 
   function animateProgressBar() {
@@ -60,7 +41,7 @@ function initCarousel() {
   }
   animateProgressBar();
 
-  // --- Scroll to card with smooth animation ---
+  // --- Smooth scroll to card ---
   function animateScroll(targetIndex, duration = 500) {
     const cardWidth = getCardWidth();
     const start = scroller.scrollLeft;
@@ -132,7 +113,9 @@ function initCarousel() {
 
   function startAutoSlide() {
     clearInterval(autoSlideInterval);
-    autoSlideInterval = setInterval(nextSlide, autoSlideDelay);
+    autoSlideInterval = setInterval(() => {
+      nextSlide();
+    }, autoSlideDelay);
   }
 
   function pauseAndResetAutoSlide() {
@@ -141,7 +124,7 @@ function initCarousel() {
 
     autoSlideTimeout = setTimeout(() => {
       startAutoSlide();
-    }, 1000);
+    }, 1000); // delay after interaction
   }
 
   // --- Manual scroll handling ---
@@ -150,7 +133,7 @@ function initCarousel() {
     if (!ticking) {
       window.requestAnimationFrame(() => {
         const cardWidth = getCardWidth();
-        currentIndex = Math.round(scroller.scrollLeft / cardWidth - 1);
+        currentIndex = Math.round((scroller.scrollLeft / cardWidth) - 1);
         if (currentIndex < 0) currentIndex = totalCards - 1;
         if (currentIndex >= totalCards) currentIndex = 0;
         updateTargetProgress();
@@ -158,30 +141,16 @@ function initCarousel() {
       });
       ticking = true;
     }
+    // Any scroll interaction resets auto-slide
+    pauseAndResetAutoSlide();
   });
 
-  // --- Reset auto-slide on drag/swipe ---
+  // --- Reset auto-slide on drag / swipe ---
   let isDragging = false;
-  scroller.addEventListener("mousedown", () => {
-    isDragging = true;
-    pauseAndResetAutoSlide();
-  });
-  scroller.addEventListener("touchstart", () => {
-    isDragging = true;
-    pauseAndResetAutoSlide();
-  });
-  scroller.addEventListener("mouseup", () => {
-    if (isDragging) {
-      isDragging = false;
-      pauseAndResetAutoSlide();
-    }
-  });
-  scroller.addEventListener("touchend", () => {
-    if (isDragging) {
-      isDragging = false;
-      pauseAndResetAutoSlide();
-    }
-  });
+  scroller.addEventListener("mousedown", () => { isDragging = true; pauseAndResetAutoSlide(); });
+  scroller.addEventListener("touchstart", () => { isDragging = true; pauseAndResetAutoSlide(); });
+  scroller.addEventListener("mouseup", () => { if (isDragging) { isDragging = false; pauseAndResetAutoSlide(); } });
+  scroller.addEventListener("touchend", () => { if (isDragging) { isDragging = false; pauseAndResetAutoSlide(); } });
 
   // --- Window resize ---
   window.addEventListener("resize", () => {
